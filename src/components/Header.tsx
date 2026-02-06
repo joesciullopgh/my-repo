@@ -13,6 +13,7 @@ import {
   LogOut,
   Heart,
   Clock,
+  Shield,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { formatPrice } from '@/lib/utils';
@@ -23,7 +24,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onNavigate, currentPage }: HeaderProps) {
-  const { user, isAuthenticated, cart, setCartOpen, selectedLocation, logout } = useStore();
+  const { user, isAuthenticated, cart, setCartOpen, selectedLocation, logout, isAdmin } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
@@ -137,6 +138,11 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
                     <button onClick={() => onNavigate('favorites')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
                       <Heart className="w-4 h-4" /> Favorites
                     </button>
+                    {isAdmin() && (
+                      <button onClick={() => onNavigate('admin')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-400 hover:bg-slate-700 rounded-lg">
+                        <Shield className="w-4 h-4" /> Admin Dashboard
+                      </button>
+                    )}
                     <button onClick={() => { logout(); onNavigate('home'); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg">
                       <LogOut className="w-4 h-4" /> Sign Out
                     </button>

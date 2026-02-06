@@ -213,12 +213,18 @@ export interface Reward {
 // USER
 // ==========================================
 
+export type UserRole = 'customer' | 'admin' | 'staff';
+
 export interface User {
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: Date;
+  lastLoginAt?: Date;
   rewards: MoonbeamRewards;
   favoriteItems: string[];  // MenuItem IDs
   favoriteLocations: string[];  // Location IDs

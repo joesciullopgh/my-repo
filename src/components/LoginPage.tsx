@@ -10,7 +10,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
-  const { login } = useStore();
+  const { login, signUp } = useStore();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,13 +31,24 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       return;
     }
 
-    const success = await login(email, password);
+    if (isSignUp && !firstName) {
+      setError('Please enter your first name');
+      setLoading(false);
+      return;
+    }
+
+    let success: boolean;
+    if (isSignUp) {
+      success = await signUp(email, password, firstName, lastName);
+    } else {
+      success = await login(email, password);
+    }
     setLoading(false);
 
     if (success) {
       onSuccess();
     } else {
-      setError('Invalid credentials. Please try again.');
+      setError('Something went wrong. Please try again.');
     }
   };
 

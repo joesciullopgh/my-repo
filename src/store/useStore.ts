@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import {
   User,
+  UserRole,
   CartItem,
   Order,
   OrderLocation,
@@ -20,6 +21,7 @@ interface AppState {
   // User
   user: User | null;
   isAuthenticated: boolean;
+  allUsers: User[];  // For admin user management
 
   // Cart
   cart: CartItem[];
@@ -37,6 +39,7 @@ interface AppState {
 
   // Actions
   login: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
   logout: () => void;
   addToCart: (menuItem: MenuItem, customization: DrinkCustomization, quantity?: number) => void;
   removeFromCart: (itemId: string) => void;
@@ -56,6 +59,13 @@ interface AppState {
   getCartTax: () => number;
   toggleFavorite: (itemId: string) => void;
   addStars: (amount: number) => void;
+
+  // Admin actions
+  isAdmin: () => boolean;
+  getAllUsers: () => User[];
+  updateUserRole: (userId: string, role: UserRole) => void;
+  toggleUserActive: (userId: string) => void;
+  deleteUser: (userId: string) => void;
 }
 
 // Calculate item price based on customizations
@@ -147,17 +157,53 @@ function generateItemName(menuItem: MenuItem, customization: DrinkCustomization)
   return parts.filter(Boolean).join(' ');
 }
 
-// Create a mock user for demo purposes
-const createMockUser = (): User => ({
-  id: 'user-1',
-  firstName: 'Alex',
-  lastName: 'Moon',
-  email: 'alex@moonbeam.cafe',
-  phone: '(555) 123-4567',
+// Create default rewards for new users
+const createDefaultRewards = (): MoonbeamRewards => ({
+  stars: 0,
+  tier: 'green',
+  starsToNextReward: 50,
+  availableRewards: [],
+});
+
+// Create a new user with provided details
+const createUser = (
+  email: string,
+  firstName: string,
+  lastName: string,
+  role: UserRole = 'customer'
+): User => ({
+  id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  firstName,
+  lastName,
+  email,
+  phone: undefined,
+  role,
+  isActive: true,
+  createdAt: new Date(),
+  lastLoginAt: new Date(),
+  rewards: createDefaultRewards(),
+  favoriteItems: [],
+  favoriteLocations: [],
+  orderHistory: [],
+  paymentMethods: [],
+  defaultPaymentMethod: undefined,
+});
+
+// Pre-seeded admin user
+const ADMIN_USER: User = {
+  id: 'admin-001',
+  firstName: 'Joe',
+  lastName: 'Sciullo',
+  email: 'joesciullo79@gmail.com',
+  phone: undefined,
+  role: 'admin',
+  isActive: true,
+  createdAt: new Date('2024-01-01'),
+  lastLoginAt: new Date(),
   rewards: {
-    stars: 156,
-    tier: 'gold',
-    starsToNextReward: 44,
+    stars: 500,
+    tier: 'platinum',
+    starsToNextReward: 0,
     availableRewards: [
       {
         id: 'reward-1',
@@ -180,11 +226,14 @@ const createMockUser = (): User => ({
     {
       id: 'pm-2',
       type: 'moonbeam-card',
-      balance: 25.50,
+      balance: 100.00,
     },
   ],
   defaultPaymentMethod: 'pm-1',
-});
+};
+
+// Initial users list with admin
+const INITIAL_USERS: User[] = [ADMIN_USER];
 
 export const useStore = create<AppState>()(
   persist(
@@ -192,6 +241,7 @@ export const useStore = create<AppState>()(
       // Initial state
       user: null,
       isAuthenticated: false,
+      allUsers: [...INITIAL_USERS],
       cart: [],
       currentOrder: null,
       orderHistory: [],
@@ -207,9 +257,63 @@ export const useStore = create<AppState>()(
         await new Promise((resolve) => setTimeout(resolve, 500));
 
         if (email) {
-          const user = createMockUser();
-          user.email = email;
-          set({ user, isAuthenticated: true });
+          const state = get();
+          // Check if user already exists
+          let existingUser = state.allUsers.find(
+            (u) => u.email.toLowerCase() === email.toLowerCase()
+          );
+
+          if (existingUser) {
+            // Update last login time
+            existingUser = { ...existingUser, lastLoginAt: new Date() };
+            set({
+              user: existingUser,
+              isAuthenticated: true,
+              allUsers: state.allUsers.map((u) =>
+                u.email.toLowerCase() === email.toLowerCase() ? existingUser! : u
+              ),
+            });
+          } else {
+            // For login without signup, extract name from email or use defaults
+            const emailName = email.split('@')[0];
+            const firstName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+            const newUser = createUser(email, firstName, '', 'customer');
+            set({
+              user: newUser,
+              isAuthenticated: true,
+              allUsers: [...state.allUsers, newUser],
+            });
+          }
+          return true;
+        }
+        return false;
+      },
+
+      signUp: async (email: string, _password: string, firstName: string, lastName: string) => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        if (email && firstName) {
+          const state = get();
+          // Check if user already exists
+          const existingUser = state.allUsers.find(
+            (u) => u.email.toLowerCase() === email.toLowerCase()
+          );
+
+          if (existingUser) {
+            // User exists, just log them in
+            set({
+              user: { ...existingUser, lastLoginAt: new Date() },
+              isAuthenticated: true,
+            });
+          } else {
+            // Create new user with provided names
+            const newUser = createUser(email, firstName, lastName, 'customer');
+            set({
+              user: newUser,
+              isAuthenticated: true,
+              allUsers: [...state.allUsers, newUser],
+            });
+          }
           return true;
         }
         return false;
@@ -429,12 +533,63 @@ export const useStore = create<AppState>()(
           };
         });
       },
+
+      // Admin actions
+      isAdmin: () => {
+        const { user } = get();
+        return user?.role === 'admin';
+      },
+
+      getAllUsers: () => {
+        return get().allUsers;
+      },
+
+      updateUserRole: (userId, role) => {
+        set((state) => {
+          if (!state.user || state.user.role !== 'admin') return state;
+
+          return {
+            allUsers: state.allUsers.map((u) =>
+              u.id === userId ? { ...u, role } : u
+            ),
+            // Update current user if they changed their own role
+            user: state.user.id === userId ? { ...state.user, role } : state.user,
+          };
+        });
+      },
+
+      toggleUserActive: (userId) => {
+        set((state) => {
+          if (!state.user || state.user.role !== 'admin') return state;
+          // Prevent admin from deactivating themselves
+          if (state.user.id === userId) return state;
+
+          return {
+            allUsers: state.allUsers.map((u) =>
+              u.id === userId ? { ...u, isActive: !u.isActive } : u
+            ),
+          };
+        });
+      },
+
+      deleteUser: (userId) => {
+        set((state) => {
+          if (!state.user || state.user.role !== 'admin') return state;
+          // Prevent admin from deleting themselves
+          if (state.user.id === userId) return state;
+
+          return {
+            allUsers: state.allUsers.filter((u) => u.id !== userId),
+          };
+        });
+      },
     }),
     {
       name: 'moonbeam-cafe-storage',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        allUsers: state.allUsers,
         cart: state.cart,
         orderHistory: state.orderHistory,
         selectedLocation: state.selectedLocation,

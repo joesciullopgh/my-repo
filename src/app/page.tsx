@@ -14,9 +14,10 @@ import LocationsPage from '@/components/LocationsPage';
 import CartSidebar from '@/components/CartSidebar';
 import CustomizeModal from '@/components/CustomizeModal';
 import MenuCard from '@/components/MenuCard';
+import AdminDashboard from '@/components/AdminDashboard';
 import { MENU_ITEMS } from '@/data/menu';
 
-type Page = 'home' | 'menu' | 'login' | 'checkout' | 'orders' | 'locations' | 'rewards' | 'favorites';
+type Page = 'home' | 'menu' | 'login' | 'checkout' | 'orders' | 'locations' | 'rewards' | 'favorites' | 'admin';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -72,12 +73,14 @@ export default function App() {
             onCustomize={handleCustomize}
           />
         );
+      case 'admin':
+        return <AdminDashboard onBack={() => handleNavigate('home')} />;
       default:
         return <HomePage onNavigate={handleNavigate} onCustomize={handleCustomize} />;
     }
   };
 
-  const showHeader = currentPage !== 'login';
+  const showHeader = currentPage !== 'login' && currentPage !== 'admin';
 
   return (
     <div className="min-h-screen bg-slate-50">
