@@ -192,6 +192,7 @@ export interface PaymentMethod {
   last4?: string;
   brand?: string;
   balance?: number;  // For Moonbeam Card
+  isDefault?: boolean;
 }
 
 export interface MoonbeamRewards {

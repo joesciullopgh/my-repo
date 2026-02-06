@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
 import { MenuItem } from '@/types';
@@ -16,12 +16,18 @@ import CustomizeModal from '@/components/CustomizeModal';
 import MenuCard from '@/components/MenuCard';
 import AdminDashboard from '@/components/AdminDashboard';
 import { MENU_ITEMS } from '@/data/menu';
+import { Loader2 } from 'lucide-react';
 
 type Page = 'home' | 'menu' | 'login' | 'checkout' | 'orders' | 'locations' | 'rewards' | 'favorites' | 'admin';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const { startCustomizing, isCustomizing } = useStore();
+  const { startCustomizing, isCustomizing, initializeAuth, isLoading } = useStore();
+
+  // Initialize auth on mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   const handleNavigate = useCallback((page: string) => {
     setCurrentPage(page as Page);
@@ -81,6 +87,18 @@ export default function App() {
   };
 
   const showHeader = currentPage !== 'login' && currentPage !== 'admin';
+
+  // Show loading screen while initializing auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-4" />
+          <p className="text-slate-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

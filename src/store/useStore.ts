@@ -13,15 +13,17 @@ import {
   DrinkCustomization,
   TAX_RATE,
   PRICING,
-  MoonbeamRewards,
 } from '@/types';
 import { LOCATIONS } from '@/data/menu';
+import * as supabase from '@/lib/supabase';
 
 interface AppState {
   // User
   user: User | null;
   isAuthenticated: boolean;
-  allUsers: User[];  // For admin user management
+  isLoading: boolean;
+  authError: string | null;
+  allUsers: User[];  // For admin user management (cached)
 
   // Cart
   cart: CartItem[];
@@ -38,9 +40,11 @@ interface AppState {
   editingCartItem: CartItem | null;
 
   // Actions
+  initializeAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   addToCart: (menuItem: MenuItem, customization: DrinkCustomization, quantity?: number) => void;
   removeFromCart: (itemId: string) => void;
   updateCartItemQuantity: (itemId: string, quantity: number) => void;
@@ -57,15 +61,16 @@ interface AppState {
   getCartTotal: () => number;
   getCartSubtotal: () => number;
   getCartTax: () => number;
-  toggleFavorite: (itemId: string) => void;
-  addStars: (amount: number) => void;
+  toggleFavorite: (itemId: string) => Promise<void>;
+  addStars: (amount: number) => Promise<void>;
 
   // Admin actions
   isAdmin: () => boolean;
   getAllUsers: () => User[];
-  updateUserRole: (userId: string, role: UserRole) => void;
-  toggleUserActive: (userId: string) => void;
-  deleteUser: (userId: string) => void;
+  fetchAllUsers: () => Promise<void>;
+  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  toggleUserActive: (userId: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
 }
 
 // Calculate item price based on customizations
@@ -90,10 +95,8 @@ export function calculateItemPrice(
 
   // Syrups (first flavor often included, extras cost)
   if (customization.syrups && customization.syrups.length > 0) {
-    // Calculate extra syrup pumps beyond default
     customization.syrups.forEach((syrup, index) => {
       if (index > 0 || syrup.pumps > 4) {
-        // Extra syrups or extra pumps
         price += PRICING.syrups[syrup.flavor] || 0;
       }
     });
@@ -125,16 +128,13 @@ export function calculateItemPrice(
 function generateItemName(menuItem: MenuItem, customization: DrinkCustomization): string {
   const parts: string[] = [];
 
-  // Size
   const sizeMap = { tall: 'Tall', grande: 'Grande', venti: 'Venti' };
   parts.push(sizeMap[customization.size]);
 
-  // Temperature modifier
   if (customization.temperature === 'iced') {
     parts.push('Iced');
   }
 
-  // Milk modifier (if non-standard)
   if (customization.milk && !['2percent', 'whole'].includes(customization.milk)) {
     const milkMap: Record<string, string> = {
       oat: 'Oatmilk',
@@ -147,7 +147,6 @@ function generateItemName(menuItem: MenuItem, customization: DrinkCustomization)
     parts.push(milkMap[customization.milk] || '');
   }
 
-  // Extra shots
   if (customization.espressoShots && customization.espressoShots > 0) {
     parts.push(`+${customization.espressoShots} Shot${customization.espressoShots > 1 ? 's' : ''}`);
   }
@@ -157,91 +156,15 @@ function generateItemName(menuItem: MenuItem, customization: DrinkCustomization)
   return parts.filter(Boolean).join(' ');
 }
 
-// Create default rewards for new users
-const createDefaultRewards = (): MoonbeamRewards => ({
-  stars: 0,
-  tier: 'green',
-  starsToNextReward: 50,
-  availableRewards: [],
-});
-
-// Create a new user with provided details
-const createUser = (
-  email: string,
-  firstName: string,
-  lastName: string,
-  role: UserRole = 'customer'
-): User => ({
-  id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  firstName,
-  lastName,
-  email,
-  phone: undefined,
-  role,
-  isActive: true,
-  createdAt: new Date(),
-  lastLoginAt: new Date(),
-  rewards: createDefaultRewards(),
-  favoriteItems: [],
-  favoriteLocations: [],
-  orderHistory: [],
-  paymentMethods: [],
-  defaultPaymentMethod: undefined,
-});
-
-// Pre-seeded admin user
-const ADMIN_USER: User = {
-  id: 'admin-001',
-  firstName: 'Joe',
-  lastName: 'Sciullo',
-  email: 'joesciullo79@gmail.com',
-  phone: undefined,
-  role: 'admin',
-  isActive: true,
-  createdAt: new Date('2024-01-01'),
-  lastLoginAt: new Date(),
-  rewards: {
-    stars: 500,
-    tier: 'platinum',
-    starsToNextReward: 0,
-    availableRewards: [
-      {
-        id: 'reward-1',
-        name: 'Free Handcrafted Drink',
-        starsRequired: 150,
-        description: 'Redeem for any handcrafted drink, any size',
-      },
-    ],
-  },
-  favoriteItems: ['caramel-macchiato', 'cold-brew', 'pink-drink'],
-  favoriteLocations: ['downtown-main'],
-  orderHistory: [],
-  paymentMethods: [
-    {
-      id: 'pm-1',
-      type: 'card',
-      last4: '4242',
-      brand: 'Visa',
-    },
-    {
-      id: 'pm-2',
-      type: 'moonbeam-card',
-      balance: 100.00,
-    },
-  ],
-  defaultPaymentMethod: 'pm-1',
-};
-
-// Initial users list with admin
-const INITIAL_USERS: User[] = [ADMIN_USER];
-
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Initial state
       user: null,
       isAuthenticated: false,
-      allUsers: [...INITIAL_USERS],
+      isLoading: true,
+      authError: null,
+      allUsers: [],
       cart: [],
       currentOrder: null,
       orderHistory: [],
@@ -251,79 +174,106 @@ export const useStore = create<AppState>()(
       customizingItem: null,
       editingCartItem: null,
 
+      // Initialize auth - check for existing session
+      initializeAuth: async () => {
+        set({ isLoading: true });
+        try {
+          const user = await supabase.getCurrentUser();
+          if (user) {
+            // Fetch order history
+            const orders = await supabase.getUserOrders(user.id);
+            set({
+              user,
+              isAuthenticated: true,
+              isLoading: false,
+              orderHistory: orders,
+            });
+          } else {
+            set({ isLoading: false });
+          }
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          set({ isLoading: false });
+        }
+      },
+
       // Auth actions
-      login: async (email: string, _password: string) => {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      login: async (email: string, password: string) => {
+        set({ isLoading: true, authError: null });
 
-        if (email) {
-          const state = get();
-          // Check if user already exists
-          let existingUser = state.allUsers.find(
-            (u) => u.email.toLowerCase() === email.toLowerCase()
-          );
+        const result = await supabase.signIn(email, password);
 
-          if (existingUser) {
-            // Update last login time
-            existingUser = { ...existingUser, lastLoginAt: new Date() };
-            set({
-              user: existingUser,
-              isAuthenticated: true,
-              allUsers: state.allUsers.map((u) =>
-                u.email.toLowerCase() === email.toLowerCase() ? existingUser! : u
-              ),
-            });
-          } else {
-            // For login without signup, extract name from email or use defaults
-            const emailName = email.split('@')[0];
-            const firstName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
-            const newUser = createUser(email, firstName, '', 'customer');
-            set({
-              user: newUser,
-              isAuthenticated: true,
-              allUsers: [...state.allUsers, newUser],
-            });
-          }
+        if (result.error) {
+          set({
+            isLoading: false,
+            authError: result.error.message
+          });
+          return false;
+        }
+
+        if (result.user) {
+          // Fetch order history
+          const orders = await supabase.getUserOrders(result.user.id);
+          set({
+            user: result.user,
+            isAuthenticated: true,
+            isLoading: false,
+            orderHistory: orders,
+          });
           return true;
         }
+
+        set({ isLoading: false });
         return false;
       },
 
-      signUp: async (email: string, _password: string, firstName: string, lastName: string) => {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      signUp: async (email: string, password: string, firstName: string, lastName: string) => {
+        set({ isLoading: true, authError: null });
 
-        if (email && firstName) {
-          const state = get();
-          // Check if user already exists
-          const existingUser = state.allUsers.find(
-            (u) => u.email.toLowerCase() === email.toLowerCase()
-          );
+        const result = await supabase.signUp(email, password, firstName, lastName);
 
-          if (existingUser) {
-            // User exists, just log them in
-            set({
-              user: { ...existingUser, lastLoginAt: new Date() },
-              isAuthenticated: true,
-            });
-          } else {
-            // Create new user with provided names
-            const newUser = createUser(email, firstName, lastName, 'customer');
-            set({
-              user: newUser,
-              isAuthenticated: true,
-              allUsers: [...state.allUsers, newUser],
-            });
-          }
+        if (result.error) {
+          set({
+            isLoading: false,
+            authError: result.error.message
+          });
+          return false;
+        }
+
+        if (result.user) {
+          set({
+            user: result.user,
+            isAuthenticated: true,
+            isLoading: false,
+          });
           return true;
         }
+
+        set({ isLoading: false });
         return false;
       },
 
-      logout: () => {
-        set({ user: null, isAuthenticated: false });
+      logout: async () => {
+        await supabase.signOut();
+        set({
+          user: null,
+          isAuthenticated: false,
+          orderHistory: [],
+          allUsers: [],
+        });
       },
 
-      // Cart actions
+      refreshUser: async () => {
+        const { user } = get();
+        if (user) {
+          const updatedUser = await supabase.fetchUserProfile(user.id);
+          if (updatedUser) {
+            set({ user: updatedUser });
+          }
+        }
+      },
+
+      // Cart actions (local only - no DB)
       addToCart: (menuItem, customization, quantity = 1) => {
         const itemPrice = calculateItemPrice(menuItem.basePrice, customization);
         const itemName = generateItemName(menuItem, customization);
@@ -388,6 +338,54 @@ export const useStore = create<AppState>()(
         const tax = state.getCartTax();
         const total = subtotal + tax + tip;
 
+        // Create cart items in the format expected by the database
+        const cartItems = state.cart.map(item => ({
+          id: item.id,
+          menuItem: item.menuItem,
+          customizations: item.customization,
+          quantity: item.quantity,
+          customizationPrice: item.itemPrice - item.menuItem.basePrice,
+          totalPrice: item.itemPrice * item.quantity,
+          specialInstructions: undefined,
+        }));
+
+        // If user is authenticated, create order in database
+        if (state.user && state.isAuthenticated) {
+          const dbOrder = await supabase.createOrder(
+            state.user.id,
+            state.selectedLocation!,
+            cartItems,
+            subtotal,
+            tax,
+            tip,
+            total,
+            paymentMethod.id
+          );
+
+          if (dbOrder) {
+            set((state) => ({
+              currentOrder: dbOrder,
+              orderHistory: [dbOrder, ...state.orderHistory],
+              cart: [],
+            }));
+
+            // Refresh user to get updated stars
+            get().refreshUser();
+
+            // Simulate order preparation progress
+            setTimeout(() => {
+              get().updateOrderStatus(dbOrder.id, 'preparing');
+            }, 3000);
+
+            setTimeout(() => {
+              get().updateOrderStatus(dbOrder.id, 'ready');
+            }, (state.selectedLocation?.estimatedWait || 10) * 60000 * 0.8);
+
+            return dbOrder;
+          }
+        }
+
+        // Fallback for non-authenticated orders (shouldn't happen normally)
         const order: Order = {
           id: `ORD-${Date.now()}`,
           items: [...state.cart],
@@ -407,42 +405,22 @@ export const useStore = create<AppState>()(
           paymentMethod,
         };
 
-        // Simulate payment processing
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
-        // Add stars for purchase (2 stars per dollar for Gold members)
-        const starsEarned = Math.floor(total * 2);
-
         set((state) => ({
           currentOrder: order,
           orderHistory: [order, ...state.orderHistory],
           cart: [],
-          user: state.user
-            ? {
-                ...state.user,
-                rewards: {
-                  ...state.user.rewards,
-                  stars: state.user.rewards.stars + starsEarned,
-                  starsToNextReward: Math.max(0, state.user.rewards.starsToNextReward - starsEarned),
-                },
-                orderHistory: [order, ...state.user.orderHistory],
-              }
-            : null,
         }));
-
-        // Simulate order preparation progress
-        setTimeout(() => {
-          get().updateOrderStatus(order.id, 'preparing');
-        }, 3000);
-
-        setTimeout(() => {
-          get().updateOrderStatus(order.id, 'ready');
-        }, (state.selectedLocation?.estimatedWait || 10) * 60000 * 0.8);
 
         return order;
       },
 
       updateOrderStatus: (orderId, status) => {
+        // Update in database if authenticated
+        const { user, isAuthenticated } = get();
+        if (user && isAuthenticated) {
+          supabase.updateOrderStatus(orderId, status);
+        }
+
         set((state) => ({
           currentOrder:
             state.currentOrder?.id === orderId
@@ -450,7 +428,7 @@ export const useStore = create<AppState>()(
                   ...state.currentOrder,
                   status,
                   statusHistory: [
-                    ...state.currentOrder.statusHistory,
+                    ...(state.currentOrder.statusHistory || []),
                     { status, timestamp: new Date() },
                   ],
                 }
@@ -460,7 +438,7 @@ export const useStore = create<AppState>()(
               ? {
                   ...order,
                   status,
-                  statusHistory: [...order.statusHistory, { status, timestamp: new Date() }],
+                  statusHistory: [...(order.statusHistory || []), { status, timestamp: new Date() }],
                 }
               : order
           ),
@@ -501,37 +479,56 @@ export const useStore = create<AppState>()(
         return get().getCartSubtotal() + get().getCartTax();
       },
 
-      toggleFavorite: (itemId) => {
-        set((state) => {
-          if (!state.user) return state;
+      toggleFavorite: async (itemId) => {
+        const { user, isAuthenticated } = get();
+        if (!user) return;
 
-          const isFavorite = state.user.favoriteItems.includes(itemId);
-          return {
-            user: {
-              ...state.user,
-              favoriteItems: isFavorite
-                ? state.user.favoriteItems.filter((id) => id !== itemId)
-                : [...state.user.favoriteItems, itemId],
-            },
-          };
-        });
+        const isFavorite = user.favoriteItems.includes(itemId);
+
+        // Optimistic update
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                favoriteItems: isFavorite
+                  ? state.user.favoriteItems.filter((id) => id !== itemId)
+                  : [...state.user.favoriteItems, itemId],
+              }
+            : null,
+        }));
+
+        // Update in database
+        if (isAuthenticated) {
+          if (isFavorite) {
+            await supabase.removeFavorite(user.id, itemId);
+          } else {
+            await supabase.addFavorite(user.id, itemId);
+          }
+        }
       },
 
-      addStars: (amount) => {
-        set((state) => {
-          if (!state.user) return state;
+      addStars: async (amount) => {
+        const { user, isAuthenticated } = get();
+        if (!user) return;
 
-          return {
-            user: {
-              ...state.user,
-              rewards: {
-                ...state.user.rewards,
-                stars: state.user.rewards.stars + amount,
-                starsToNextReward: Math.max(0, state.user.rewards.starsToNextReward - amount),
-              },
-            },
-          };
-        });
+        // Optimistic update
+        set((state) => ({
+          user: state.user
+            ? {
+                ...state.user,
+                rewards: {
+                  ...state.user.rewards,
+                  stars: state.user.rewards.stars + amount,
+                  starsToNextReward: Math.max(0, state.user.rewards.starsToNextReward - amount),
+                },
+              }
+            : null,
+        }));
+
+        // Update in database
+        if (isAuthenticated) {
+          await supabase.addStars(user.id, amount);
+        }
       },
 
       // Admin actions
@@ -544,54 +541,62 @@ export const useStore = create<AppState>()(
         return get().allUsers;
       },
 
-      updateUserRole: (userId, role) => {
-        set((state) => {
-          if (!state.user || state.user.role !== 'admin') return state;
+      fetchAllUsers: async () => {
+        const { user } = get();
+        if (!user || user.role !== 'admin') return;
 
-          return {
+        const users = await supabase.getAllUsers();
+        set({ allUsers: users });
+      },
+
+      updateUserRole: async (userId, role) => {
+        const { user } = get();
+        if (!user || user.role !== 'admin') return;
+
+        const success = await supabase.updateUserRole(userId, role);
+        if (success) {
+          // Update local cache
+          set((state) => ({
             allUsers: state.allUsers.map((u) =>
               u.id === userId ? { ...u, role } : u
             ),
-            // Update current user if they changed their own role
-            user: state.user.id === userId ? { ...state.user, role } : state.user,
-          };
-        });
+            user: state.user?.id === userId ? { ...state.user, role } : state.user,
+          }));
+        }
       },
 
-      toggleUserActive: (userId) => {
-        set((state) => {
-          if (!state.user || state.user.role !== 'admin') return state;
-          // Prevent admin from deactivating themselves
-          if (state.user.id === userId) return state;
+      toggleUserActive: async (userId) => {
+        const { user } = get();
+        if (!user || user.role !== 'admin') return;
+        if (user.id === userId) return; // Can't deactivate self
 
-          return {
+        const success = await supabase.toggleUserActive(userId);
+        if (success) {
+          set((state) => ({
             allUsers: state.allUsers.map((u) =>
               u.id === userId ? { ...u, isActive: !u.isActive } : u
             ),
-          };
-        });
+          }));
+        }
       },
 
-      deleteUser: (userId) => {
-        set((state) => {
-          if (!state.user || state.user.role !== 'admin') return state;
-          // Prevent admin from deleting themselves
-          if (state.user.id === userId) return state;
+      deleteUser: async (userId) => {
+        const { user } = get();
+        if (!user || user.role !== 'admin') return;
+        if (user.id === userId) return; // Can't delete self
 
-          return {
+        const success = await supabase.deleteUser(userId);
+        if (success) {
+          set((state) => ({
             allUsers: state.allUsers.filter((u) => u.id !== userId),
-          };
-        });
+          }));
+        }
       },
     }),
     {
       name: 'moonbeam-cafe-storage',
       partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-        allUsers: state.allUsers,
         cart: state.cart,
-        orderHistory: state.orderHistory,
         selectedLocation: state.selectedLocation,
       }),
     }

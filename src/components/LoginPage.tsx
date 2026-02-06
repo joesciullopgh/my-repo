@@ -10,30 +10,31 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
-  const { login, signUp } = useStore();
+  const { login, signUp, authError, isLoading } = useStore();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (!email || !password) {
       setError('Please fill in all fields');
-      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
     if (isSignUp && !firstName) {
       setError('Please enter your first name');
-      setLoading(false);
       return;
     }
 
@@ -43,14 +44,13 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     } else {
       success = await login(email, password);
     }
-    setLoading(false);
 
     if (success) {
       onSuccess();
-    } else {
-      setError('Something went wrong. Please try again.');
     }
   };
+
+  const displayError = error || authError;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 flex items-center justify-center px-4 py-12">
@@ -158,18 +158,18 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+            {displayError && (
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{displayError}</p>
             )}
 
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               type="submit"
-              disabled={loading}
+              disabled={isLoading}
               className="w-full py-3 bg-gradient-to-r from-indigo-950 to-indigo-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 hover:from-indigo-900 hover:to-indigo-700 transition-all disabled:opacity-70"
             >
-              {loading ? (
+              {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
@@ -180,11 +180,11 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
             </motion.button>
           </form>
 
-          {/* Demo hint */}
-          <div className="mt-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
-            <p className="text-xs text-amber-800">
-              <strong>Demo:</strong> Enter any email and password to sign in.
-              You&apos;ll get a pre-loaded account with rewards and payment methods.
+          {/* Info hint */}
+          <div className="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+            <p className="text-xs text-indigo-800">
+              <strong>Note:</strong> Create an account to start earning stars and save your favorites.
+              Password must be at least 6 characters.
             </p>
           </div>
 

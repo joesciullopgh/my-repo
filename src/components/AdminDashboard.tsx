@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
-  Shield,
   ShieldCheck,
   ShieldX,
   Search,
@@ -17,19 +16,31 @@ import {
   Coffee,
   Star,
   ArrowLeft,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { User, UserRole } from '@/types';
+import { UserRole } from '@/types';
 
 interface AdminDashboardProps {
   onBack: () => void;
 }
 
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
-  const { user, getAllUsers, updateUserRole, toggleUserActive, deleteUser, isAdmin } = useStore();
+  const { user, getAllUsers, fetchAllUsers, updateUserRole, toggleUserActive, deleteUser, isAdmin } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  // Fetch users on mount
+  useEffect(() => {
+    const loadUsers = async () => {
+      setIsLoadingUsers(true);
+      await fetchAllUsers();
+      setIsLoadingUsers(false);
+    };
+    loadUsers();
+  }, [fetchAllUsers]);
 
   // Check if current user is admin
   if (!user || !isAdmin()) {
@@ -51,6 +62,18 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   }
 
   const allUsers = getAllUsers();
+
+  // Show loading state
+  if (isLoadingUsers && allUsers.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-4" />
+          <p className="text-slate-500">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Filter users
   const filteredUsers = allUsers.filter((u) => {
