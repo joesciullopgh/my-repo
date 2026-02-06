@@ -69,6 +69,7 @@ interface AppState {
   getAllUsers: () => User[];
   fetchAllUsers: () => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  updateUserProfile: (userId: string, updates: { firstName?: string; lastName?: string; phone?: string; stars?: number }) => Promise<void>;
   toggleUserActive: (userId: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
 }
@@ -561,6 +562,42 @@ export const useStore = create<AppState>()(
               u.id === userId ? { ...u, role } : u
             ),
             user: state.user?.id === userId ? { ...state.user, role } : state.user,
+          }));
+        }
+      },
+
+      updateUserProfile: async (userId, updates) => {
+        const { user } = get();
+        if (!user || user.role !== 'admin') return;
+
+        const success = await supabase.updateUserProfile(userId, updates);
+        if (success) {
+          // Update local cache
+          set((state) => ({
+            allUsers: state.allUsers.map((u) =>
+              u.id === userId
+                ? {
+                    ...u,
+                    firstName: updates.firstName ?? u.firstName,
+                    lastName: updates.lastName ?? u.lastName,
+                    phone: updates.phone ?? u.phone,
+                    rewards: updates.stars !== undefined
+                      ? { ...u.rewards, stars: updates.stars }
+                      : u.rewards,
+                  }
+                : u
+            ),
+            user: state.user?.id === userId
+              ? {
+                  ...state.user,
+                  firstName: updates.firstName ?? state.user.firstName,
+                  lastName: updates.lastName ?? state.user.lastName,
+                  phone: updates.phone ?? state.user.phone,
+                  rewards: updates.stars !== undefined
+                    ? { ...state.user.rewards, stars: updates.stars }
+                    : state.user.rewards,
+                }
+              : state.user,
           }));
         }
       },

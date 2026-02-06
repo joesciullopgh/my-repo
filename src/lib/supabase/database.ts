@@ -69,6 +69,36 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<bo
   return true;
 }
 
+export async function updateUserProfile(
+  userId: string,
+  updates: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    stars?: number;
+  }
+): Promise<boolean> {
+  const supabase = getSupabaseClient();
+
+  const dbUpdates: any = {};
+  if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName;
+  if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+  if (updates.stars !== undefined) dbUpdates.stars = updates.stars;
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(dbUpdates)
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error updating user profile:', error);
+    return false;
+  }
+
+  return true;
+}
+
 export async function toggleUserActive(userId: string): Promise<boolean> {
   const supabase = getSupabaseClient();
 

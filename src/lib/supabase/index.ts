@@ -18,6 +18,7 @@ export {
   // User management
   getAllUsers,
   updateUserRole,
+  updateUserProfile,
   toggleUserActive,
   deleteUser,
   addStars,
