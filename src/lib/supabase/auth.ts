@@ -160,6 +160,15 @@ export async function fetchUserProfile(userId: string): Promise<AppUser | null> 
     return null;
   }
 
+  // Debug logging
+  console.log('Fetched profile from Supabase:', {
+    id: profile.id,
+    email: profile.email,
+    role: profile.role,
+    first_name: profile.first_name,
+    last_name: profile.last_name,
+  });
+
   // Fetch favorites
   const { data: favorites } = await supabase
     .from('favorites')
