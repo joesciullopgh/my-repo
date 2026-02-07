@@ -1,21 +1,35 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import { BUSINESS_INFO } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: "Moonbeam Café - Order Ahead",
-  description: "Handcrafted beverages made with organic ingredients. Order ahead and skip the line at Moonbeam Café.",
-  keywords: ["coffee", "cafe", "order ahead", "moonbeam", "organic", "espresso", "latte"],
+  title: `${BUSINESS_INFO.name} | Oakmont, PA`,
+  description: BUSINESS_INFO.tagline,
+  keywords: ['coffee', 'cafe', 'oakmont', 'pittsburgh', 'lattes', 'pastries', 'organic'],
+  openGraph: {
+    title: BUSINESS_INFO.name,
+    description: BUSINESS_INFO.tagline,
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
-        {children}
+      <body className="font-sans">
+        <div className="flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer />
+        </div>
       </body>
     </html>
   );
