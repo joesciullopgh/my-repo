@@ -54,36 +54,37 @@ export async function signUp(
       return { user: null, error: { message: 'Failed to create account' } };
     }
 
-    // Wait for profile trigger to create profile
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Fetch the created profile
-    const { data: profile, error: profileError } = await supabase
+    // Create profile in database (since we don't have a trigger)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const profileData: any = {
+      id: data.user.id,
+      email: email,
+      first_name: firstName,
+      last_name: lastName || '',
+      role: 'customer',
+      is_active: true,
+      stars: 0,
+    };
+    const { error: profileError } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+      .insert(profileData);
 
-    if (profileError || !profile) {
-      // Profile might not exist yet due to trigger timing
-      // Return basic user info
-      return {
-        user: {
-          id: data.user.id,
-          email: email,
-          firstName: firstName,
-          lastName: lastName,
-          phone: null,
-          role: 'customer' as UserRole,
-          isActive: true,
-          stars: 0,
-        },
-        error: null,
-      };
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      // Still return success since auth user was created
     }
 
     return {
-      user: profileToUser(profile as unknown as Profile),
+      user: {
+        id: data.user.id,
+        email: email,
+        firstName: firstName,
+        lastName: lastName || '',
+        phone: null,
+        role: 'customer' as UserRole,
+        isActive: true,
+        stars: 0,
+      },
       error: null,
     };
   } catch (err) {
