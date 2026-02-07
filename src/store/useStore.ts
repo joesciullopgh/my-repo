@@ -190,11 +190,22 @@ export const useStore = create<AppState>()(
               orderHistory: orders,
             });
           } else {
-            set({ isLoading: false });
+            // No Supabase user - clear any stale localStorage user data
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              orderHistory: [],
+            });
           }
         } catch (error) {
           console.error('Auth initialization error:', error);
-          set({ isLoading: false });
+          // On error, also clear user state to prevent stale data
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false
+          });
         }
       },
 
