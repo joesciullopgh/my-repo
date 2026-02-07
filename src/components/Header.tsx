@@ -130,10 +130,10 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
                 {accountMenuOpen && (
                   <>
                     <div
-                      className="fixed inset-0 z-10"
+                      className="fixed inset-0 z-[100]"
                       onClick={() => setAccountMenuOpen(false)}
                     />
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-20">
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-[101]">
                       <div className="p-3 border-b border-slate-700">
                         <p className="text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p>
                         <p className="text-xs text-slate-400">{user?.email}</p>
@@ -212,6 +212,20 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
               ))}
               {isAuthenticated && (
                 <>
+                  <div className="border-t border-slate-700 my-2" />
+                  <div className="px-4 py-2 text-xs text-slate-500 uppercase tracking-wider">Account</div>
+                  <button
+                    onClick={() => { onNavigate('rewards'); setMobileMenuOpen(false); }}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                  >
+                    <Star className="w-4 h-4" /> Rewards
+                  </button>
+                  <button
+                    onClick={() => { onNavigate('favorites'); setMobileMenuOpen(false); }}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                  >
+                    <Heart className="w-4 h-4" /> Favorites
+                  </button>
                   {isAdmin() && (
                     <button
                       onClick={() => { onNavigate('admin'); setMobileMenuOpen(false); }}
