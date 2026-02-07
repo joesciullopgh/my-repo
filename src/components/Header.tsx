@@ -16,7 +16,6 @@ import {
   Shield,
 } from 'lucide-react';
 import { useStore } from '@/store/useStore';
-import { formatPrice } from '@/lib/utils';
 
 interface HeaderProps {
   onNavigate: (page: string) => void;
@@ -26,22 +25,25 @@ interface HeaderProps {
 export default function Header({ onNavigate, currentPage }: HeaderProps) {
   const { user, isAuthenticated, cart, setCartOpen, selectedLocation, logout, isAdmin } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    setAccountMenuOpen(false);
     setMobileMenuOpen(false);
     try {
       await logout();
+      onNavigate('home');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       setIsLoggingOut(false);
-      onNavigate('home');
     }
+  };
+
+  const handleNavClick = (page: string) => {
+    onNavigate(page);
+    setMobileMenuOpen(false);
   };
 
   return (
@@ -63,7 +65,7 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <button
-            onClick={() => onNavigate('home')}
+            onClick={() => handleNavClick('home')}
             className="flex items-center gap-2 group"
           >
             <div className="relative">
@@ -89,7 +91,7 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
             ].map(({ id, label }) => (
               <button
                 key={id}
-                onClick={() => onNavigate(id)}
+                onClick={() => handleNavClick(id)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   currentPage === id
                     ? 'bg-amber-500/20 text-amber-400'
@@ -106,7 +108,7 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
             {/* Location Selector */}
             {selectedLocation && (
               <button
-                onClick={() => onNavigate('locations')}
+                onClick={() => handleNavClick('locations')}
                 className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors bg-white/5 rounded-lg px-3 py-2"
               >
                 <MapPin className="w-3.5 h-3.5" />
@@ -131,54 +133,20 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
               )}
             </button>
 
-            {/* User Menu */}
+            {/* User Button - Simple, just navigates to rewards/login */}
             {isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                  className="flex items-center gap-2 p-2 text-slate-300 hover:text-white transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-indigo-950 text-xs font-bold">
-                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
-                  </div>
-                </button>
-                {accountMenuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-[100]"
-                      onClick={() => setAccountMenuOpen(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-[101]">
-                      <div className="p-3 border-b border-slate-700">
-                        <p className="text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p>
-                        <p className="text-xs text-slate-400">{user?.email}</p>
-                      </div>
-                      <div className="p-1">
-                        <button onClick={() => { onNavigate('orders'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                          <Clock className="w-4 h-4" /> Order History
-                        </button>
-                        <button onClick={() => { onNavigate('rewards'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                          <Star className="w-4 h-4" /> Rewards
-                        </button>
-                        <button onClick={() => { onNavigate('favorites'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                          <Heart className="w-4 h-4" /> Favorites
-                        </button>
-                        {isAdmin() && (
-                          <button onClick={() => { onNavigate('admin'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-400 hover:bg-slate-700 rounded-lg">
-                            <Shield className="w-4 h-4" /> Admin Dashboard
-                          </button>
-                        )}
-                        <button onClick={handleLogout} disabled={isLoggingOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg disabled:opacity-50">
-                          <LogOut className="w-4 h-4" /> {isLoggingOut ? 'Signing out...' : 'Sign Out'}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              <button
+                onClick={() => handleNavClick('rewards')}
+                className="flex items-center gap-2 p-2 text-slate-300 hover:text-white transition-colors"
+                title={`${user?.firstName} ${user?.lastName}`}
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-indigo-950 text-xs font-bold">
+                  {user?.firstName?.charAt(0) || '?'}{user?.lastName?.charAt(0) || ''}
+                </div>
+              </button>
             ) : (
               <button
-                onClick={() => onNavigate('login')}
+                onClick={() => handleNavClick('login')}
                 className="flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-indigo-950 rounded-lg text-sm font-semibold transition-colors"
               >
                 <User className="w-4 h-4" />
@@ -189,7 +157,7 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-slate-300 hover:text-white"
+              className="p-2 text-slate-300 hover:text-white"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
             </button>
@@ -197,69 +165,142 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Slide-out Menu (works on all devices) */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="md:hidden overflow-hidden border-t border-slate-800"
-          >
-            <nav className="px-4 py-3 flex flex-col gap-1">
-              {[
-                { id: 'home', label: 'Home' },
-                { id: 'menu', label: 'Menu' },
-                { id: 'orders', label: 'Orders' },
-                { id: 'locations', label: 'Locations' },
-              ].map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => { onNavigate(id); setMobileMenuOpen(false); }}
-                  className={`px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all ${
-                    currentPage === id
-                      ? 'bg-amber-500/20 text-amber-400'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-              {isAuthenticated && (
-                <>
-                  <div className="border-t border-slate-700 my-2" />
-                  <div className="px-4 py-2 text-xs text-slate-500 uppercase tracking-wider">Account</div>
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 z-40"
+            />
+
+            {/* Menu Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'tween', duration: 0.2 }}
+              className="fixed top-0 right-0 h-full w-72 bg-slate-900 border-l border-slate-700 z-50 overflow-y-auto"
+            >
+              <div className="p-4">
+                {/* Close button */}
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-lg font-bold text-white">Menu</span>
                   <button
-                    onClick={() => { onNavigate('rewards'); setMobileMenuOpen(false); }}
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 text-slate-400 hover:text-white"
                   >
-                    <Star className="w-4 h-4" /> Rewards
+                    <X className="w-6 h-6" />
                   </button>
-                  <button
-                    onClick={() => { onNavigate('favorites'); setMobileMenuOpen(false); }}
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-white/5 flex items-center gap-2"
-                  >
-                    <Heart className="w-4 h-4" /> Favorites
-                  </button>
-                  {isAdmin() && (
+                </div>
+
+                {/* User Info */}
+                {isAuthenticated && user && (
+                  <div className="mb-6 p-4 bg-slate-800 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-indigo-950 font-bold">
+                        {user.firstName?.charAt(0) || '?'}{user.lastName?.charAt(0) || ''}
+                      </div>
+                      <div>
+                        <p className="font-medium text-white">{user.firstName} {user.lastName}</p>
+                        <p className="text-xs text-slate-400">{user.email}</p>
+                        <p className="text-xs text-amber-400 mt-1">
+                          <Star className="inline w-3 h-3 mr-1" />
+                          {user.rewards.stars} Stars
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Navigation Links */}
+                <nav className="space-y-1">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider px-3 py-2">Navigation</p>
+
+                  {[
+                    { id: 'home', label: 'Home' },
+                    { id: 'menu', label: 'Menu' },
+                    { id: 'orders', label: 'Orders' },
+                    { id: 'locations', label: 'Locations' },
+                  ].map(({ id, label }) => (
                     <button
-                      onClick={() => { onNavigate('admin'); setMobileMenuOpen(false); }}
-                      className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-amber-400 hover:bg-white/5 flex items-center gap-2"
+                      key={id}
+                      onClick={() => handleNavClick(id)}
+                      className={`w-full px-4 py-3 rounded-lg text-sm font-medium text-left transition-all ${
+                        currentPage === id
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                      }`}
                     >
-                      <Shield className="w-4 h-4" /> Admin Dashboard
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+
+                {/* Account Section */}
+                {isAuthenticated && (
+                  <nav className="mt-6 space-y-1">
+                    <p className="text-xs text-slate-500 uppercase tracking-wider px-3 py-2">Account</p>
+
+                    <button
+                      onClick={() => handleNavClick('rewards')}
+                      className="w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-3"
+                    >
+                      <Star className="w-5 h-5 text-amber-400" /> Rewards
+                    </button>
+
+                    <button
+                      onClick={() => handleNavClick('favorites')}
+                      className="w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-3"
+                    >
+                      <Heart className="w-5 h-5 text-pink-400" /> Favorites
+                    </button>
+
+                    <button
+                      onClick={() => handleNavClick('orders')}
+                      className="w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-3"
+                    >
+                      <Clock className="w-5 h-5 text-blue-400" /> Order History
+                    </button>
+
+                    {isAdmin() && (
+                      <button
+                        onClick={() => handleNavClick('admin')}
+                        className="w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-amber-400 hover:bg-slate-800 flex items-center gap-3"
+                      >
+                        <Shield className="w-5 h-5" /> Admin Dashboard
+                      </button>
+                    )}
+                  </nav>
+                )}
+
+                {/* Auth Actions */}
+                <div className="mt-6 pt-6 border-t border-slate-700">
+                  {isAuthenticated ? (
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="w-full px-4 py-3 rounded-lg text-sm font-medium text-left text-red-400 hover:bg-red-500/10 flex items-center gap-3 disabled:opacity-50"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleNavClick('login')}
+                      className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-400 text-indigo-950 rounded-lg text-sm font-semibold flex items-center justify-center gap-2"
+                    >
+                      <User className="w-5 h-5" /> Sign In / Sign Up
                     </button>
                   )}
-                  <button
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-red-400 hover:bg-white/5 flex items-center gap-2 disabled:opacity-50"
-                  >
-                    <LogOut className="w-4 h-4" /> {isLoggingOut ? 'Signing out...' : 'Sign Out'}
-                  </button>
-                </>
-              )}
-            </nav>
-          </motion.div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </header>
