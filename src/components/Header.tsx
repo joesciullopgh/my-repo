@@ -27,7 +27,22 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
   const { user, isAuthenticated, cart, setCartOpen, selectedLocation, logout, isAdmin } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    setAccountMenuOpen(false);
+    setMobileMenuOpen(false);
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+      onNavigate('home');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 shadow-lg shadow-indigo-950/20">
@@ -153,8 +168,8 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
                             <Shield className="w-4 h-4" /> Admin Dashboard
                           </button>
                         )}
-                        <button onClick={() => { logout(); setAccountMenuOpen(false); onNavigate('home'); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg">
-                          <LogOut className="w-4 h-4" /> Sign Out
+                        <button onClick={handleLogout} disabled={isLoggingOut} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg disabled:opacity-50">
+                          <LogOut className="w-4 h-4" /> {isLoggingOut ? 'Signing out...' : 'Sign Out'}
                         </button>
                       </div>
                     </div>
@@ -235,10 +250,11 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
                     </button>
                   )}
                   <button
-                    onClick={() => { logout(); setMobileMenuOpen(false); onNavigate('home'); }}
-                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-red-400 hover:bg-white/5 flex items-center gap-2"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-red-400 hover:bg-white/5 flex items-center gap-2 disabled:opacity-50"
                   >
-                    <LogOut className="w-4 h-4" /> Sign Out
+                    <LogOut className="w-4 h-4" /> {isLoggingOut ? 'Signing out...' : 'Sign Out'}
                   </button>
                 </>
               )}

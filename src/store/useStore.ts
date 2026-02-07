@@ -266,13 +266,22 @@ export const useStore = create<AppState>()(
       },
 
       logout: async () => {
-        await supabase.signOut();
+        // Always clear local state first to ensure user sees logged out UI
         set({
           user: null,
           isAuthenticated: false,
           orderHistory: [],
           allUsers: [],
         });
+        // Then sign out from Supabase
+        try {
+          const { error } = await supabase.signOut();
+          if (error) {
+            console.error('Supabase signOut error:', error);
+          }
+        } catch (error) {
+          console.error('Logout error:', error);
+        }
       },
 
       refreshUser: async () => {
