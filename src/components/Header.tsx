@@ -26,6 +26,7 @@ interface HeaderProps {
 export default function Header({ onNavigate, currentPage }: HeaderProps) {
   const { user, isAuthenticated, cart, setCartOpen, selectedLocation, logout, isAdmin } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
 
   return (
@@ -117,37 +118,48 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
 
             {/* User Menu */}
             {isAuthenticated ? (
-              <div className="relative group">
-                <button className="flex items-center gap-2 p-2 text-slate-300 hover:text-white transition-colors">
+              <div className="relative">
+                <button
+                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                  className="flex items-center gap-2 p-2 text-slate-300 hover:text-white transition-colors"
+                >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-indigo-950 text-xs font-bold">
                     {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
                   </div>
                 </button>
-                <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                  <div className="p-3 border-b border-slate-700">
-                    <p className="text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p>
-                    <p className="text-xs text-slate-400">{user?.email}</p>
-                  </div>
-                  <div className="p-1">
-                    <button onClick={() => onNavigate('orders')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                      <Clock className="w-4 h-4" /> Order History
-                    </button>
-                    <button onClick={() => onNavigate('rewards')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                      <Star className="w-4 h-4" /> Rewards
-                    </button>
-                    <button onClick={() => onNavigate('favorites')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
-                      <Heart className="w-4 h-4" /> Favorites
-                    </button>
-                    {isAdmin() && (
-                      <button onClick={() => onNavigate('admin')} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-400 hover:bg-slate-700 rounded-lg">
-                        <Shield className="w-4 h-4" /> Admin Dashboard
-                      </button>
-                    )}
-                    <button onClick={() => { logout(); onNavigate('home'); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg">
-                      <LogOut className="w-4 h-4" /> Sign Out
-                    </button>
-                  </div>
-                </div>
+                {accountMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setAccountMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 rounded-xl shadow-xl border border-slate-700 z-20">
+                      <div className="p-3 border-b border-slate-700">
+                        <p className="text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p>
+                        <p className="text-xs text-slate-400">{user?.email}</p>
+                      </div>
+                      <div className="p-1">
+                        <button onClick={() => { onNavigate('orders'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
+                          <Clock className="w-4 h-4" /> Order History
+                        </button>
+                        <button onClick={() => { onNavigate('rewards'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
+                          <Star className="w-4 h-4" /> Rewards
+                        </button>
+                        <button onClick={() => { onNavigate('favorites'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-lg">
+                          <Heart className="w-4 h-4" /> Favorites
+                        </button>
+                        {isAdmin() && (
+                          <button onClick={() => { onNavigate('admin'); setAccountMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-400 hover:bg-slate-700 rounded-lg">
+                            <Shield className="w-4 h-4" /> Admin Dashboard
+                          </button>
+                        )}
+                        <button onClick={() => { logout(); setAccountMenuOpen(false); onNavigate('home'); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-slate-700 rounded-lg">
+                          <LogOut className="w-4 h-4" /> Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <button
