@@ -198,6 +198,24 @@ export default function Header({ onNavigate, currentPage }: HeaderProps) {
                   {label}
                 </button>
               ))}
+              {isAuthenticated && (
+                <>
+                  {isAdmin() && (
+                    <button
+                      onClick={() => { onNavigate('admin'); setMobileMenuOpen(false); }}
+                      className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-amber-400 hover:bg-white/5 flex items-center gap-2"
+                    >
+                      <Shield className="w-4 h-4" /> Admin Dashboard
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { logout(); setMobileMenuOpen(false); onNavigate('home'); }}
+                    className="px-4 py-2.5 rounded-lg text-sm font-medium text-left text-red-400 hover:bg-white/5 flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </button>
+                </>
+              )}
             </nav>
           </motion.div>
         )}
