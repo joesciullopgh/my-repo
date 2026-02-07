@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Moonbeam Cafe Brand Colors */
+  --color-primary: #3d4a2d;        /* Dark olive green */
+  --color-primary-light: #4a5a38;  /* Lighter olive */
+  --color-primary-dark: #2d3820;   /* Darker olive */
+
+  --color-secondary: #f5e6c8;      /* Cream/beige */
+  --color-secondary-dark: #e8d4a8; /* Darker cream */
+
+  --color-accent: #8b7355;         /* Tan/brown */
+  --color-accent-light: #a68b6a;   /* Lighter tan */
+  --color-accent-dark: #5c4a3a;    /* Deep brown */
+
+  --color-text: #2d2d2d;           /* Dark text */
+  --color-text-light: #5c5c5c;     /* Light text */
+  --color-text-inverse: #f5e6c8;   /* Light text on dark bg */
+
+  --color-background: #faf8f5;     /* Off-white background */
+  --color-surface: #ffffff;        /* White surface */
+
+  --color-success: #4a7c4e;        /* Green for success */
+  --color-error: #c44536;          /* Red for errors */
+  --color-warning: #d4a03a;        /* Amber for warnings */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-dark);
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Utility classes for brand colors */
+.bg-primary { background-color: var(--color-primary); }
+.bg-primary-light { background-color: var(--color-primary-light); }
+.bg-primary-dark { background-color: var(--color-primary-dark); }
+.bg-secondary { background-color: var(--color-secondary); }
+.bg-accent { background-color: var(--color-accent); }
+.bg-surface { background-color: var(--color-surface); }
+
+.text-primary { color: var(--color-primary); }
+.text-secondary { color: var(--color-secondary); }
+.text-accent { color: var(--color-accent); }
+.text-inverse { color: var(--color-text-inverse); }
+
+.border-primary { border-color: var(--color-primary); }
+.border-secondary { border-color: var(--color-secondary); }
+.border-accent { border-color: var(--color-accent); }
